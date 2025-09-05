@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
                 val ip = getLocalIpAddress()
                 tvUrl.text = "http://$ip:$port"
             } catch (e: Exception) {
-                tvUrl.text = "Start failed: ${e.message}"
+                tvUrl.text = "Start failed: ${e.message ?: "Unknown error"}"
             }
         }
 
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
                 val addrs = intf.inetAddresses
                 for (addr in addrs) {
                     if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
-                        return addr.hostAddress
+                        addr.hostAddress?.let { return it }
                     }
                 }
             }
