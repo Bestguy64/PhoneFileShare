@@ -1,9 +1,10 @@
-﻿name: Android CI Build (simple)
+﻿name: Android CI Build — stable SDK installer and build
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  pull_request:
 
 jobs:
   build:
@@ -19,19 +20,56 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK (quick, stable)
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          force-avd-creation: false
-          install-build-tools: "33.0.2"
-          install-platform-tools: true
-
-      - name: Show sdk paths
+      - name: Prepare ANDROID_SDK_ROOT (use runner temp)
         run: |
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-          echo "PATH: $PATH"
+          echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
+          mkdir -p "$RUNNER_TEMP/android-sdk"
+        shell: bash
+
+      - name: Install unzip and curl
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl
+        shell: bash
+
+      - name: Download and extract Android command-line tools
+        run: |
+          SDK_ROOT="$ANDROID_SDK_ROOT"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          cd "$SDK_ROOT/cmdline-tools"
+          curl -fsSL -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools.zip
+          # normalize to 'latest'
+          if [ -d "$SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
+            mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+          elif [ -d "$SDK_ROOT/cmdline-tools/tools" ]; then
+            mv "$SDK_ROOT/cmdline-tools/tools" "$SDK_ROOT/cmdline-tools/latest"
+          else
+            mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+            mv "$SDK_ROOT/cmdline-tools"/* "$SDK_ROOT/cmdline-tools/latest" || true
+          fi
+        shell: bash
+
+      - name: Install platform-tools, build-tools and platform (retry up to 3 times)
+        run: |
+          SDK="$ANDROID_SDK_ROOT"
+          CMD="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          retry() { n=0; until "$@" || [ $n -ge 2 ]; do n=$((n+1)); echo "retry #$n..."; sleep 3; done; }
+          retry "$CMD" --sdk_root="$SDK" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+        shell: bash
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
+        shell: bash
+
+      - name: Add platform-tools and sdk tools to PATH and verify adb
+        run: |
+          echo "PATH=$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+          adb version || (echo "adb not found" && exit 1)
+          sdkmanager --version || (echo "sdkmanager not found" && exit 1)
         shell: bash
 
       - name: Build debug APK (use wrapper if present)
@@ -40,11 +78,13 @@ jobs:
             chmod +x ./gradlew
             ./gradlew assembleDebug --no-daemon --stacktrace
           else
+            sudo apt-get update
+            sudo apt-get install -y gradle
             gradle assembleDebug --no-daemon --stacktrace
           fi
         shell: bash
 
-      - name: Upload debug APK artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
