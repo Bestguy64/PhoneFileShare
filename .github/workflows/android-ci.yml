@@ -14,11 +14,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set ANDROID_SDK_ROOT path
+      - name: Prepare ANDROID_SDK_ROOT
         run: |
-          # create a stable SDK path under the runner temp directory and export it for later steps
+          # set SDK path under runner temp and export it for later steps
           echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
+          mkdir -p "$RUNNER_TEMP/android-sdk"
+        shell: bash
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -28,11 +30,11 @@ jobs:
 
       - name: Install Android command-line tools
         run: |
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          cd $ANDROID_SDK_ROOT/cmdline-tools
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          cd "$ANDROID_SDK_ROOT/cmdline-tools"
           curl -fsSL -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools.zip
-          # Some zip releases place files in a 'cmdline-tools' or 'tools' subfolder; normalize to 'latest'
+          # normalize folder names to 'latest'
           if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
             mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
           elif [ -d "$ANDROID_SDK_ROOT/cmdline-tools/tools" ]; then
@@ -44,24 +46,26 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
 
       - name: Accept SDK licenses
-        run: yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=$ANDROID_SDK_ROOT
+        run: |
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
         shell: bash
 
-      - name: Install Gradle (system)
+      - name: Install system Gradle
         run: |
           sudo apt-get update
           sudo apt-get install -y gradle
         shell: bash
 
-      - name: Build debug APK (use wrapper if present else system gradle)
+      - name: Build debug APK (use wrapper if present)
         env:
-          PATH: ${{ env.PATH }}:${{ github.workspace }}/gradle/wrapper:${{ github.workspace }}/gradle/wrapper
+          # allow gradle wrapper path to be visible if present
+          PATH: ${{ github.workspace }}/gradle/wrapper:${{ github.workspace }}/gradle/wrapper
         run: |
-          # ensure sdktools in PATH for the gradle build
+          # ensure sdk tools available in PATH
           export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
           if [ -f ./gradlew ]; then
             chmod +x ./gradlew
