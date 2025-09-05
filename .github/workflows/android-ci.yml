@@ -16,7 +16,7 @@ jobs:
 
       - name: Prepare ANDROID_SDK_ROOT
         run: |
-          # set SDK path under runner temp and export it for later steps
+          # set SDK path under runner temp and export for later steps
           echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
           mkdir -p "$RUNNER_TEMP/android-sdk"
@@ -62,10 +62,8 @@ jobs:
 
       - name: Build debug APK (use wrapper if present)
         env:
-          # allow gradle wrapper path to be visible if present
           PATH: ${{ github.workspace }}/gradle/wrapper:${{ github.workspace }}/gradle/wrapper
         run: |
-          # ensure sdk tools available in PATH
           export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
           if [ -f ./gradlew ]; then
             chmod +x ./gradlew
