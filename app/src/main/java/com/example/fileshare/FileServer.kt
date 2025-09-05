@@ -54,7 +54,7 @@ class FileServer(private val context: Context, port: Int = 8080) : NanoHTTPD(por
 
             return newFixedLengthResponse(Response.Status.METHOD_NOT_ALLOWED, "text/plain", "Method Not Allowed")
         } catch (e: Exception) {
-            return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "Error: ")
+            return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "Error: ${e.message}")
         }
     }
 

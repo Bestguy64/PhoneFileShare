@@ -21,14 +21,11 @@ android {
         }
     }
 
-    dexOptions {
-        javaMaxHeapSize "1g"
-    }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.7.22"
     implementation "androidx.appcompat:appcompat:1.6.1"
     implementation "com.google.android.material:material:1.9.0"
-    implementation "fi.iki.elonen:nanohttpd:2.3.1"
+    implementation "org.nanohttpd:nanohttpd:2.3.1"
 }
