@@ -36,9 +36,12 @@ jobs:
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
 
-      - name: Accept Android SDK licenses
+      - name: Accept Android SDK licenses (non-interactive)
         run: |
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" --no_interactive > /dev/null
+          mkdir -p "$ANDROID_SDK_ROOT/licenses"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" || true
+          echo "licenses dir contents:"
+          ls -la "$ANDROID_SDK_ROOT/licenses" || true
         shell: bash
 
       - name: Build debug APK
