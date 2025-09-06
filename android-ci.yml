@@ -39,7 +39,7 @@ jobs:
       - name: Accept Android SDK licenses (non-interactive)
         run: |
           mkdir -p "$ANDROID_SDK_ROOT/licenses"
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" || true
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" > /dev/null || true
           echo "licenses dir contents:"
           ls -la "$ANDROID_SDK_ROOT/licenses" || true
         shell: bash
