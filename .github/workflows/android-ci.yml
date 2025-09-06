@@ -59,9 +59,12 @@ jobs:
           retry "$CMD" --sdk_root="$SDK" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
 
-      - name: Accept Android SDK licenses
+      - name: Accept Android SDK licenses (non-interactive)
         run: |
+          mkdir -p "$ANDROID_SDK_ROOT/licenses"
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
+          echo "licenses dir contents:"
+          ls -la "$ANDROID_SDK_ROOT/licenses" || true
         shell: bash
 
       - name: Add platform-tools and sdk tools to PATH and verify adb
