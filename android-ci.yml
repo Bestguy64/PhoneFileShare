@@ -35,28 +35,18 @@ jobs:
         run: |
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
-- name: Accept Android SDK licenses
-  run: |
-    yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" --no_interactive > /dev/null
-  shell: bash
 
-      - name: Install Gradle (system)
+      - name: Accept Android SDK licenses
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
         shell: bash
 
-      - name: Build debug APK (use wrapper if present else system gradle)
+      - name: Build debug APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          PATH: ${{ env.PATH }}:${{ env.ANDROID_SDK_ROOT }}/platform-tools:${{ env.ANDROID_SDK_ROOT }}/cmdline-tools/latest/bin
         run: |
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --no-daemon --stacktrace
-          else
-            gradle assembleDebug --no-daemon --stacktrace
-          fi
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
         shell: bash
 
       - name: Upload APK artifact
