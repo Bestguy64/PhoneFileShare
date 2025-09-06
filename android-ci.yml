@@ -1,4 +1,4 @@
-name: Android CI Build
+name: Android CI Build — stable SDK installer and build
 
 on:
   push:
@@ -9,8 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
 
     steps:
       - name: Checkout
@@ -22,13 +20,35 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android command-line tools
+      - name: Prepare ANDROID_SDK_ROOT (use runner temp)
         run: |
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          cd $ANDROID_SDK_ROOT/cmdline-tools
+          echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
+          mkdir -p "$RUNNER_TEMP/android-sdk"
+        shell: bash
+
+      - name: Install unzip and curl
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl
+        shell: bash
+
+      - name: Download and extract Android command-line tools
+        run: |
+          SDK_ROOT="$ANDROID_SDK_ROOT"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          cd "$SDK_ROOT/cmdline-tools"
           curl -fsSL -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools.zip
-          mv cmdline-tools latest
+          # normalize to 'latest'
+          if [ -d "$SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
+            mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+          elif [ -d "$SDK_ROOT/cmdline-tools/tools" ]; then
+            mv "$SDK_ROOT/cmdline-tools/tools" "$SDK_ROOT/cmdline-tools/latest"
+          else
+            mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+            mv "$SDK_ROOT/cmdline-tools"/* "$SDK_ROOT/cmdline-tools/latest" || true
+          fi
         shell: bash
 
       - name: Install Android SDK packages
@@ -48,9 +68,15 @@ jobs:
           echo "33b6a2b6460d5cd946777579f9bad6d34c10776f" > $ANDROID_SDK_ROOT/licenses/google-gdk-license
         shell: bash
 
+      - name: Add platform-tools and sdk tools to PATH and verify adb
+        run: |
+          echo "PATH=$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+          adb version || (echo "adb not found" && exit 1)
+          sdkmanager --version || (echo "sdkmanager not found" && exit 1)
+        shell: bash
+
       - name: Build debug APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         run: |
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
