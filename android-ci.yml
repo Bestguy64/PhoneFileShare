@@ -38,7 +38,7 @@ jobs:
 
       - name: Accept Android SDK licenses
         run: |
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" --no_interactive > /dev/null
         shell: bash
 
       - name: Build debug APK
