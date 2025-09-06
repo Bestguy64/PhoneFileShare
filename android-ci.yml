@@ -35,28 +35,25 @@ jobs:
         run: |
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
-- name: Accept Android SDK licenses
-  run: |
-    yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT" --no_interactive > /dev/null
-  shell: bash
 
-      - name: Install Gradle (system)
+      - name: Create comprehensive Android SDK license files
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
+          mkdir -p $ANDROID_SDK_ROOT/licenses
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> $ANDROID_SDK_ROOT/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
+          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_SDK_ROOT/licenses/intel-android-extra-license
+          echo "79120722343a6f314e0717f187c4267d52f43370" > $ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license
+          echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_SDK_ROOT/licenses/android-googletv-license
+          echo "33b6a2b6460d5cd946777579f9bad6d34c10776f" > $ANDROID_SDK_ROOT/licenses/google-gdk-license
         shell: bash
 
-      - name: Build debug APK (use wrapper if present else system gradle)
+      - name: Build debug APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          PATH: ${{ env.PATH }}:${{ env.ANDROID_SDK_ROOT }}/platform-tools:${{ env.ANDROID_SDK_ROOT }}/cmdline-tools/latest/bin
         run: |
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --no-daemon --stacktrace
-          else
-            gradle assembleDebug --no-daemon --stacktrace
-          fi
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
         shell: bash
 
       - name: Upload APK artifact
