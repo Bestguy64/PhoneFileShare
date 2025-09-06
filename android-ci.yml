@@ -53,9 +53,6 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-        shell: bash
-        run: |
           mkdir -p $ANDROID_SDK_ROOT/licenses
           echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> $ANDROID_SDK_ROOT/licenses/android-sdk-license
@@ -64,6 +61,7 @@ jobs:
           echo "79120722343a6f314e0717f187c4267d52f43370" > $ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license
           echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_SDK_ROOT/licenses/android-googletv-license
           echo "33b6a2b6460d5cd946777579f9bad6d34c10776f" > $ANDROID_SDK_ROOT/licenses/google-gdk-license
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-33" "build-tools;33.0.2"
         shell: bash
 
       - name: Add platform-tools and sdk tools to PATH and verify adb
