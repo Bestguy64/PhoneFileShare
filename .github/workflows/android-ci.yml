@@ -1,4 +1,4 @@
-﻿name: Android CI Build — install SDK, accept licenses, build
+﻿name: Android CI Build — diagnostic SDK install + build
 
 on:
   push:
@@ -24,6 +24,7 @@ jobs:
           echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> $GITHUB_ENV
           mkdir -p "$RUNNER_TEMP/android-sdk"
+          ls -la "$RUNNER_TEMP" || true
         shell: bash
 
       - name: Install unzip and curl
@@ -32,13 +33,15 @@ jobs:
           sudo apt-get install -y unzip curl
         shell: bash
 
-      - name: Download and extract Android command-line tools
+      - name: Download and extract Android command-line tools (diagnostic)
         run: |
+          set -x
           SDK_ROOT="$ANDROID_SDK_ROOT"
           mkdir -p "$SDK_ROOT/cmdline-tools"
           cd "$SDK_ROOT/cmdline-tools"
           curl -fsSL -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools.zip
+          # normalize to 'latest'
           if [ -d "$SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
             mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
           elif [ -d "$SDK_ROOT/cmdline-tools/tools" ]; then
@@ -47,35 +50,64 @@ jobs:
             mkdir -p "$SDK_ROOT/cmdline-tools/latest"
             mv "$SDK_ROOT/cmdline-tools"/* "$SDK_ROOT/cmdline-tools/latest" || true
           fi
+          ls -la "$SDK_ROOT"
+          ls -la "$SDK_ROOT/cmdline-tools"
+          ls -la "$SDK_ROOT/cmdline-tools/latest/bin"
         shell: bash
 
-      - name: Install Android SDK packages
+      - name: Run sdkmanager install (capture log)
         run: |
           SDK="$ANDROID_SDK_ROOT"
           CMD="$SDK/cmdline-tools/latest/bin/sdkmanager"
-          retry() { n=0; until "$@" || [ $n -ge 2 ]; do n=$((n+1)); echo "retry #$n..."; sleep 3; done; }
-          retry "$CMD" --sdk_root="$SDK" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          echo "sdkmanager path: $CMD"
+          # show sdkmanager version and java details
+          java -version || true
+          "$CMD" --version || true
+          # run installation with tracing and capture stdout+stderr
+          set -x
+          "$CMD" --sdk_root="$SDK" "platform-tools" "platforms;android-33" "build-tools;33.0.2" 2>&1 | tee "$GITHUB_WORKSPACE/sdk_install.log"
+          echo "sdkmanager exit code: $?"
+          echo "---- tail of sdk_install.log ----"
+          tail -n 200 "$GITHUB_WORKSPACE/sdk_install.log" || true
         shell: bash
 
-      - name: Accept Android SDK licenses non-interactively
+      - name: Show platform-tools dir and sdk tree after install
         run: |
-         mkdir -p "$ANDROID_SDK_ROOT/licenses"
-         echo y | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_SDK_ROOT"
-          echo "licenses dir contents:"
-          ls -la "$ANDROID_SDK_ROOT/licenses" || true
+          SDK="$ANDROID_SDK_ROOT"
+          echo "listing $SDK/platform-tools"
+          ls -la "$SDK/platform-tools" || echo "platform-tools missing"
+          echo "listing $SDK/cmdline-tools/latest"
+          ls -la "$SDK/cmdline-tools/latest" || true
+          echo "listing $SDK/licenses"
+          ls -la "$SDK/licenses" || echo "licenses missing"
+        shell: bash
+
+      - name: Accept Android SDK licenses (non-interactive)
+        run: |
+          SDK="$ANDROID_SDK_ROOT"
+          mkdir -p "$SDK/licenses"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$SDK" 2>&1 | tee "$GITHUB_WORKSPACE/sdk_licenses.log" || true
+          echo "---- licenses log ----"
+          tail -n 200 "$GITHUB_WORKSPACE/sdk_licenses.log" || true
+          ls -la "$SDK/licenses" || true
         shell: bash
 
       - name: Add SDK tools to PATH
         run: |
           echo "PATH=$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          echo "Appended platform-tools to PATH via GITHUB_ENV"
         shell: bash
 
-      - name: Verify adb and sdkmanager
+      - name: Verify adb and sdkmanager (final check)
         run: |
           export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-          ls -l "$ANDROID_SDK_ROOT/platform-tools" || true
-          adb version
-          sdkmanager --version
+          echo "PATH is: $PATH"
+          echo "platform-tools contents:"
+          ls -la "$ANDROID_SDK_ROOT/platform-tools" || true
+          echo "adb check:"
+          if command -v adb >/dev/null 2>&1; then adb version; else echo "adb not found"; ls -la "$ANDROID_SDK_ROOT" || true; exit 2; fi
+          echo "sdkmanager check:"
+          sdkmanager --version || (echo "sdkmanager failed" && exit 3)
         shell: bash
 
       - name: Build debug APK (use wrapper if present)
